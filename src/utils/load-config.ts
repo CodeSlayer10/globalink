@@ -1,5 +1,4 @@
 import path from 'path';
-import { createRequire } from 'module';
 import type { LinkConfig } from '../types.ts';
 import { fsExists } from './fs-exists.ts';
 import { readJsonFile } from './read-json-file.ts';

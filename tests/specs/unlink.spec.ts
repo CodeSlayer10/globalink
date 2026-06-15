@@ -95,6 +95,44 @@ export const unlinkSpec = (nodePath: string) => {
 			expect(await fixture.exists('nested/package-deep-link/node_modules/@scope/package-scoped')).toBe(false);
 		});
 
+		test('--deep terminates on circular config references', async () => {
+			await using fixture = await createFixture({
+				'package-a': {
+					'package.json': JSON.stringify({ name: 'package-a' }),
+					'link.config.json': JSON.stringify({
+						deepLink: true,
+						packages: ['../package-b'],
+					}),
+				},
+				'package-b': {
+					'package.json': JSON.stringify({ name: 'package-b' }),
+					'link.config.json': JSON.stringify({
+						deepLink: true,
+						packages: ['../package-a'],
+					}),
+				},
+			});
+
+			const packageAPath = path.join(fixture.path, 'package-a');
+
+			await link(['--deep'], {
+				cwd: packageAPath,
+				nodePath,
+			});
+
+			expect(await fixture.exists('package-a/node_modules/package-b')).toBe(true);
+			expect(await fixture.exists('package-b/node_modules/package-a')).toBe(true);
+
+			const result = await unlink(['--deep'], {
+				cwd: packageAPath,
+				nodePath,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(await fixture.exists('package-a/node_modules/package-b')).toBe(false);
+			expect(await fixture.exists('package-b/node_modules/package-a')).toBe(false);
+		});
+
 		describe('filtering', () => {
 			test('--include unlinks only matching packages by name', async () => {
 				await using fixture = await createFixture('./tests/fixtures/');

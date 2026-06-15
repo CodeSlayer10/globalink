@@ -1,18 +1,16 @@
 {
-	"name": "link",
-	"version": "0.0.0-semantic-release",
-	"description": "A better npm link",
+	"name": "@merkaz-amit/global",
+	"private": false,
+	"version": "1.0.1",
+	"description": "A more global npm link",
 	"keywords": [
 		"npm",
 		"link",
 		"symlink"
 	],
 	"license": "MIT",
-	"repository": "privatenumber/link",
-	"funding": "https://github.com/privatenumber/link?sponsor=1",
 	"author": {
-		"name": "Hiroki Osame",
-		"email": "hiroki.osame@gmail.com"
+		"name": "team lang"
 	},
 	"files": [
 		"dist",

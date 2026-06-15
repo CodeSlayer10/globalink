@@ -185,6 +185,34 @@ export const linkConfig = (nodePath: string) => {
 				);
 				expect(entryPackage.stdout).toBe('["package-entry","package-binary","package-files","@scope/package-scoped",["package-deep-link","package-files","@scope/package-scoped"]]');
 			});
+
+			test('terminates on circular config references', async () => {
+				await using fixture = await createFixture({
+					'package-a': {
+						'package.json': JSON.stringify({ name: 'package-a' }),
+						'link.config.json': JSON.stringify({
+							deepLink: true,
+							packages: ['../package-b'],
+						}),
+					},
+					'package-b': {
+						'package.json': JSON.stringify({ name: 'package-b' }),
+						'link.config.json': JSON.stringify({
+							deepLink: true,
+							packages: ['../package-a'],
+						}),
+					},
+				});
+
+				const result = await link(['--deep'], {
+					cwd: path.join(fixture.path, 'package-a'),
+					nodePath,
+				});
+
+				expect(result.exitCode).toBe(0);
+				expect(await fixture.exists('package-a/node_modules/package-b')).toBe(true);
+				expect(await fixture.exists('package-b/node_modules/package-a')).toBe(true);
+			});
 		});
 
 		describe('filtering', () => {

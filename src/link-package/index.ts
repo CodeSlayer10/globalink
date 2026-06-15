@@ -14,6 +14,7 @@ export const linkPackage = async (
 	options: {
 		deep?: boolean;
 	},
+	visited: Set<string> = new Set(),
 ) => {
 	const absoluteLinkPackagePath = path.resolve(basePackagePath, linkPackagePath);
 	const pathExists = await fsExists(absoluteLinkPackagePath);
@@ -44,6 +45,7 @@ export const linkPackage = async (
 				absoluteLinkPackagePath,
 				config,
 				options,
+				visited,
 			);
 		}
 	}
@@ -57,10 +59,17 @@ export const linkFromConfig = async (
 		include?: string[];
 		exclude?: string[];
 	},
+	visited: Set<string> = new Set(),
 ) => {
 	if (!config.packages) {
 		return;
 	}
+
+	const resolvedBase = path.resolve(basePackagePath);
+	if (visited.has(resolvedBase)) {
+		return;
+	}
+	visited.add(resolvedBase);
 
 	const packagePaths = await resolvePackagePaths(
 		basePackagePath,
@@ -78,6 +87,7 @@ export const linkFromConfig = async (
 				basePackagePath,
 				linkPackagePath,
 				newOptions,
+				visited,
 			),
 		),
 	);
