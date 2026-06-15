@@ -5,6 +5,7 @@ import {
 import { fsExists } from '../utils/fs-exists.ts';
 import type { LinkConfig } from '../types.ts';
 import { loadConfig } from '../utils/load-config.ts';
+import { readPackageJson } from '../utils/read-package-json.ts';
 import { symlinkPackage } from './symlink-package.ts';
 
 export const linkPackage = async (
@@ -53,10 +54,44 @@ export const linkFromConfig = async (
 	config: LinkConfig,
 	options: {
 		deep?: boolean;
+		include?: string[];
+		exclude?: string[];
 	},
 ) => {
 	if (!config.packages) {
 		return;
+	}
+
+	const { include, exclude } = options;
+	let packagePaths = config.packages;
+
+	if (include?.length || exclude?.length) {
+		const resolved = await Promise.all(
+			config.packages.map(async (linkPackagePath) => {
+				const absolutePath = path.resolve(basePackagePath, linkPackagePath);
+				let name: string | undefined;
+				let alias: string | undefined;
+				try {
+					({ name } = await readPackageJson(absolutePath));
+				} catch {}
+				try {
+					const packageConfig = await loadConfig(absolutePath);
+					alias = packageConfig?.alias;
+				} catch {}
+				const keys = [name, alias].filter(Boolean) as string[];
+				return {
+					linkPackagePath,
+					keys,
+				};
+			}),
+		);
+
+		packagePaths = resolved
+			.filter(({ keys }) => (
+				(!include?.length || keys.some(key => include.includes(key)))
+				&& (!exclude?.length || !keys.some(key => exclude.includes(key)))
+			))
+			.map(({ linkPackagePath }) => linkPackagePath);
 	}
 
 	const newOptions = {
@@ -64,7 +99,7 @@ export const linkFromConfig = async (
 	};
 
 	await Promise.all(
-		config.packages.map(
+		packagePaths.map(
 			async linkPackagePath => await linkPackage(
 				basePackagePath,
 				linkPackagePath,

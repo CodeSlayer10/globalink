@@ -186,6 +186,68 @@ export const linkConfig = (nodePath: string) => {
 				expect(entryPackage.stdout).toBe('["package-entry","package-binary","package-files","@scope/package-scoped",["package-deep-link","package-files","@scope/package-scoped"]]');
 			});
 		});
+
+		describe('filtering', () => {
+			const writeConfig = (fixture: Awaited<ReturnType<typeof createFixture>>) => (
+				fixture.writeJson('package-entry/link.config.json', {
+					packages: [
+						'../package-binary',
+						path.join(fixture.path, 'package-files'),
+						'../package-scoped',
+					],
+				})
+			);
+
+			test('--include links only matching packages by name', async () => {
+				await using fixture = await createFixture('./tests/fixtures/');
+				const entryPackagePath = path.join(fixture.path, 'package-entry');
+				await writeConfig(fixture);
+
+				await link(['--include', 'package-binary'], {
+					cwd: entryPackagePath,
+					nodePath,
+				});
+
+				expect(await fixture.exists('package-entry/node_modules/package-binary')).toBe(true);
+				expect(await fixture.exists('package-entry/node_modules/package-files')).toBe(false);
+				expect(await fixture.exists('package-entry/node_modules/@scope/package-scoped')).toBe(false);
+			});
+
+			test('--exclude skips matching packages by name', async () => {
+				await using fixture = await createFixture('./tests/fixtures/');
+				const entryPackagePath = path.join(fixture.path, 'package-entry');
+				await writeConfig(fixture);
+
+				await link(['--exclude', 'package-binary'], {
+					cwd: entryPackagePath,
+					nodePath,
+				});
+
+				expect(await fixture.exists('package-entry/node_modules/package-binary')).toBe(false);
+				expect(await fixture.exists('package-entry/node_modules/package-files')).toBe(true);
+				expect(await fixture.exists('package-entry/node_modules/@scope/package-scoped')).toBe(true);
+			});
+
+			test('-i matches against a package alias', async () => {
+				await using fixture = await createFixture('./tests/fixtures/');
+				const entryPackagePath = path.join(fixture.path, 'package-entry');
+				await writeConfig(fixture);
+
+				// package-files declares an alias in its own config
+				await fixture.writeJson('package-files/link.config.json', {
+					alias: 'files-alias',
+				});
+
+				await link(['-i', 'files-alias'], {
+					cwd: entryPackagePath,
+					nodePath,
+				});
+
+				expect(await fixture.exists('package-entry/node_modules/package-files')).toBe(true);
+				expect(await fixture.exists('package-entry/node_modules/package-binary')).toBe(false);
+				expect(await fixture.exists('package-entry/node_modules/@scope/package-scoped')).toBe(false);
+			});
+		});
 	});
 
 	describe('link.config.js', () => {

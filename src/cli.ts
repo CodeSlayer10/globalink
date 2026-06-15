@@ -15,6 +15,16 @@ import { publishCommand, publishHandler } from './commands/publish/index.ts';
 				alias: 'd',
 				description: 'Run `npx link` on dependencies if they have a link.config.json',
 			},
+			include: {
+				type: [String],
+				alias: 'i',
+				description: 'Only link packages whose name or alias matches (repeatable)',
+			},
+			exclude: {
+				type: [String],
+				alias: 'e',
+				description: 'Skip packages whose name or alias matches (repeatable)',
+			},
 		},
 		help: {
 			description: 'A better `npm link` -- symlink local dependencies to the current project',
@@ -74,6 +84,8 @@ import { publishCommand, publishHandler } from './commands/publish/index.ts';
 			config,
 			{
 				deep: argv.flags.deep,
+				include: argv.flags.include,
+				exclude: argv.flags.exclude,
 			},
 		);
 	} else if (argv.command === 'publish') {

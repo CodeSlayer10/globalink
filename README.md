@@ -141,6 +141,9 @@ The configuration has the following type schema:
 ```ts
 type LinkConfig = {
 
+    // Short handle for this package, used with --include/--exclude
+    alias?: string
+
     // Whether to run `npx link` on dependency packages with link.config.json
     deepLink?: boolean
 
@@ -156,6 +159,38 @@ To link the dependencies defined in `link.config.json`, run:
 ```sh
 npx link
 ```
+
+### Filtering which packages to link
+
+When linking from `link.config.json`, you can link only a subset of the configured
+packages using `--include`/`-i` and `--exclude`/`-e`. Both flags are repeatable and
+match against each package's `name` (from its `package.json`) or its `alias` (from
+its own `link.config.json`).
+
+```sh
+# Only link the matching packages
+npx link --include package-a --include package-b
+
+# Link everything except the matching packages
+npx link --exclude package-c
+```
+
+The `alias` field lets you reference a package by a short handle instead of its full
+package name:
+
+```json5
+// dependency-package/link.config.json
+{
+    "alias": "a",
+}
+```
+
+```sh
+npx link -i a
+```
+
+> **Note:** `alias` is only used as a handle for filtering — it does not change the
+> name the package is linked under in `node_modules`.
 
 ### Deep linking
 
