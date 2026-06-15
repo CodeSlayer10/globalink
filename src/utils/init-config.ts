@@ -15,7 +15,10 @@ export const initConfig = async (
     const configJsonPath = path.join(packageDirectory, configJsonFile);
     // Abort rather than clobber an existing config (json or js)
     if (options.recursive) {
-        packagePaths.map(path => initConfig(path, []));
+        packagePaths.forEach(path => {
+            const filteredPaths = packagePaths.filter(current => current !== path);
+            initConfig(path, filteredPaths);
+        });
     }
     if (await fsExists(configJsonPath)) {
         console.warn(red('✖'), `Config file already exists in ${cyan(packageDirectory)}`);
@@ -25,7 +28,7 @@ export const initConfig = async (
 
     const config: LinkConfig = {
         deepLink: options.deep || false,
-        packages: packagePaths,
+        packages: packagePaths.map(path => path + "\n"),
     };
 
     await fs.writeFile(configJsonPath, `${JSON.stringify(config, null, '\t')}\n`);

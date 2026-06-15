@@ -1,7 +1,7 @@
 {
 	"name": "@merkaz-amit/global",
 	"private": false,
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "A more global npm link",
 	"keywords": [
 		"npm",
@@ -27,7 +27,7 @@
 		"dev": "node --watch tests/index.ts",
 		"lint": "lintroll --cache --ignore-pattern=tests/fixtures .",
 		"type-check": "tsc",
-		"prepack": "pnpm build && clean-pkg-json",
+		"prepack": "pnpm build",
 		"prepare": "skills-npm"
 	},
 	"devDependencies": {
