@@ -19,7 +19,9 @@
 		"skills"
 	],
 	"type": "module",
-	"bin": "dist/cli.js",
+	"bin": {
+		"global": "dist/cli.js"
+	},
 	"packageManager": "pnpm@10.14.0",
 	"scripts": {
 		"build": "pkgroll --minify --clean-dist",

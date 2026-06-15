@@ -5,7 +5,6 @@ import { fsExists } from './fs-exists.ts';
 import { readJsonFile } from './read-json-file.ts';
 
 const configJsonFile = 'link.config.json';
-const configJsFile = 'link.config.js';
 
 export const loadConfig = async (
 	packageDirectory: string,
@@ -16,17 +15,6 @@ export const loadConfig = async (
 			return await readJsonFile(configJsonPath) as LinkConfig;
 		} catch (error) {
 			throw new Error(`Failed to parse config JSON ${configJsonPath}: ${(error as Error).message}`);
-		}
-	}
-
-	const configJsPath = path.join(packageDirectory, configJsFile);
-	if (await fsExists(configJsPath)) {
-		try {
-			const require = createRequire(import.meta.url);
-			// eslint-disable-next-line import-x/no-dynamic-require
-			return require(configJsPath) as LinkConfig;
-		} catch (error) {
-			throw new Error(`Failed to load config file ${configJsFile}: ${(error as Error).message}`);
 		}
 	}
 };

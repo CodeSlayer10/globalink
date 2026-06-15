@@ -1,4 +1,5 @@
 import { command } from 'cleye';
+import { getProjectCwd } from '../../utils/project-cwd.ts';
 import { linkPublishMode } from './link-publish-mode.ts';
 
 export const publishCommand = command({
@@ -14,12 +15,10 @@ export const publishCommand = command({
 	help: {
 		description: 'Link a package to simulate an environment similar to `npm install`',
 	},
-});
+}, async (argv) => {
+	const cwdProjectPath = await getProjectCwd();
+	const { packagePaths } = argv._;
 
-export const publishHandler = async (
-	cwdProjectPath: string,
-	packagePaths: string[],
-) => {
 	if (packagePaths.length > 0) {
 		await Promise.all(
 			packagePaths.map(
@@ -30,4 +29,4 @@ export const publishHandler = async (
 			),
 		);
 	}
-};
+});

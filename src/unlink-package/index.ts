@@ -1,14 +1,14 @@
 import path from 'path';
 import {
-	green, red, cyan, magenta,
+	green, red, yellow, cyan, magenta,
 } from 'kolorist';
 import { fsExists } from '../utils/fs-exists.ts';
 import type { LinkConfig } from '../types.ts';
 import { loadConfig } from '../utils/load-config.ts';
 import { resolvePackagePaths } from '../utils/filter-config-packages.ts';
-import { symlinkPackage } from './symlink-package.ts';
+import { unsymlinkPackage } from './unsymlink-package.ts';
 
-export const linkPackage = async (
+export const unlinkPackage = async (
 	basePackagePath: string,
 	linkPackagePath: string,
 	options: {
@@ -25,13 +25,18 @@ export const linkPackage = async (
 	}
 
 	try {
-		const link = await symlinkPackage(
+		const link = await unsymlinkPackage(
 			basePackagePath,
 			linkPackagePath,
 		);
-		console.log(green('✔'), `Symlinked ${magenta(link.name)}:`, cyan(link.path), '→', cyan(link.target));
+
+		if (link.skippedNonSymlink) {
+			console.warn(yellow('⚠'), `Skipped ${magenta(link.name)}: not a symlink`, cyan(link.path));
+		} else {
+			console.log(green('✔'), `Unlinked ${magenta(link.name)}:`, cyan(link.path));
+		}
 	} catch (error) {
-		console.warn(red('✖'), 'Failed to symlink', cyan(linkPackagePath), 'with error:', (error as Error).message);
+		console.warn(red('✖'), 'Failed to unlink', cyan(linkPackagePath), 'with error:', (error as Error).message);
 		process.exitCode = 1;
 		return;
 	}
@@ -40,7 +45,7 @@ export const linkPackage = async (
 		const config = await loadConfig(absoluteLinkPackagePath);
 
 		if (config) {
-			await linkFromConfig(
+			await unlinkFromConfig(
 				absoluteLinkPackagePath,
 				config,
 				options,
@@ -49,7 +54,7 @@ export const linkPackage = async (
 	}
 };
 
-export const linkFromConfig = async (
+export const unlinkFromConfig = async (
 	basePackagePath: string,
 	config: LinkConfig,
 	options: {
@@ -74,7 +79,7 @@ export const linkFromConfig = async (
 
 	await Promise.all(
 		packagePaths.map(
-			async linkPackagePath => await linkPackage(
+			async linkPackagePath => await unlinkPackage(
 				basePackagePath,
 				linkPackagePath,
 				newOptions,

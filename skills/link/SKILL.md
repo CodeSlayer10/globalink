@@ -1,9 +1,9 @@
 ---
 name: link
-description: "Symlink or hardlink local packages into node_modules using `npx link`. Use when linking local dependencies for development, setting up publish-mode hardlinks, or configuring link.config.json. Do not use for general symlink/hardlink filesystem questions or npm link internals."
+description: "Symlink or hardlink local packages into node_modules using the `global` CLI (`global link`). Use when linking local dependencies for development, setting up publish-mode hardlinks, or configuring link.config.json. Do not use for general symlink/hardlink filesystem questions or npm link internals."
 ---
 
-# npx link
+# global
 
 Safer `npm link` alternative — symlinks local packages directly into `node_modules` without global installs or dependency reinstalls.
 
@@ -11,12 +11,19 @@ Safer `npm link` alternative — symlinks local packages directly into `node_mod
 
 | Command | Purpose |
 |---------|---------|
-| `npx link <paths...>` | Symlink local packages into `node_modules` |
-| `npx link` | Link all packages from `link.config.json` |
-| `npx link --deep` / `-d` | Recursively link dependencies that have their own `link.config.json` |
-| `npx link --include <name>` / `-i` | Link only configured packages matching the given name or alias (repeatable) |
-| `npx link --exclude <name>` / `-e` | Skip configured packages matching the given name or alias (repeatable) |
-| `npx link publish <paths...>` | Hardlink only publishable files (simulates `npm install`) |
+| `global link <paths...>` | Symlink local packages into `node_modules` |
+| `global link` | Link all packages from `link.config.json` |
+| `global link --deep` / `-d` | Recursively link dependencies that have their own `link.config.json` |
+| `global link --include <name>` / `-i` | Link only configured packages matching the given name or alias (repeatable) |
+| `global link --exclude <name>` / `-e` | Skip configured packages matching the given name or alias (repeatable) |
+| `global unlink <paths...>` | Remove symlinks previously created by `link` |
+| `global unlink` | Remove symlinks for all packages in `link.config.json` |
+| `global unlink --deep` / `-d` | Recursively unlink dependencies that have their own `link.config.json` |
+| `global unlink --include <name>` / `-i` | Unlink only configured packages matching the given name or alias (repeatable) |
+| `global unlink --exclude <name>` / `-e` | Skip configured packages matching the given name or alias (repeatable) |
+| `global publish <paths...>` | Hardlink only publishable files (simulates `npm install`) |
+
+Running `global <paths...>` with no subcommand is shorthand for `global link <paths...>`.
 
 ## Symlink Mode (Default)
 
@@ -24,10 +31,10 @@ Creates a symlink at `node_modules/<package-name>` pointing to the local package
 
 ```sh
 # From the consuming project directory
-npx link ../my-library
+global link ../my-library
 ```
 
-Removes links by running `npm install` (restores `node_modules` integrity).
+Remove links with `global unlink` (the inverse of `link` — accepts the same paths, `link.config.json` fallback, `--deep`, `--include`, and `--exclude`). It only removes symlinks `link` created; a real installed directory is left intact. Running `npm install` also restores `node_modules` integrity.
 
 ### When to use symlink mode
 - Quick iteration on a local dependency
@@ -46,7 +53,7 @@ npm pack
 
 # 2. In the consuming project — install tarball, then link
 npm install --no-save ../my-library/my-library-1.0.0.tgz
-npx link publish ../my-library
+global publish ../my-library
 ```
 
 ### When to use publish mode
@@ -55,7 +62,7 @@ npx link publish ../my-library
 - Bundlers or Node.js resolve modules via realpath (symlinks break resolution)
 
 ### Limitations
-- New files in the dependency require re-running `npx link publish <path>`
+- New files in the dependency require re-running `global publish <path>`
 - The dependency must already be installed (via tarball) before linking
 
 ## Configuration File
@@ -81,7 +88,7 @@ npx link publish ../my-library
 
 Do not commit `link.config.json` — paths are machine-specific.
 
-Run `npx link` with no arguments to link all configured packages. Use `npx link --deep` or set `"deepLink": true` to enable recursive linking.
+Run `global link` with no arguments to link all configured packages. Use `global link --deep` or set `"deepLink": true` to enable recursive linking.
 
 ## Filtering Which Packages to Link
 
@@ -89,16 +96,16 @@ When linking from `link.config.json`, use `--include`/`-i` and `--exclude`/`-e` 
 
 ```sh
 # Link only the matching packages
-npx link --include dependency-a --include dep-b
+global link --include dependency-a --include dep-b
 
 # Link everything except the matching packages
-npx link --exclude dependency-a
+global link --exclude dependency-a
 
 # Match by alias instead of package name
-npx link -i dep-a
+global link -i dep-a
 ```
 
-Filtering applies only to the config flow (`npx link` with no path arguments) — it does not affect paths passed directly on the command line. Filters apply only to the top-level config and are not propagated into `--deep` recursion.
+Filtering applies only to the config flow (`global link` with no path arguments) — it does not affect paths passed directly on the command line. Filters apply only to the top-level config and are not propagated into `--deep` recursion.
 
 ## Symlink vs Publish Mode
 

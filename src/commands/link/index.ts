@@ -1,0 +1,81 @@
+import { command } from 'cleye';
+import { outdent } from 'outdent';
+import { linkPackage, linkFromConfig } from '../../link-package/index.ts';
+import { loadConfig } from '../../utils/load-config.ts';
+import { getProjectCwd } from '../../utils/project-cwd.ts';
+
+type LinkFlags = {
+	deep?: boolean;
+	include: string[];
+	exclude: string[];
+};
+
+export const runLink = async (
+	cwdProjectPath: string,
+	packagePaths: string[],
+	flags: LinkFlags,
+	showHelp: () => void,
+) => {
+	if (packagePaths.length > 0) {
+		await Promise.all(
+			packagePaths.map(
+				linkPackagePath => linkPackage(
+					cwdProjectPath,
+					linkPackagePath,
+					flags,
+				),
+			),
+		);
+		return;
+	}
+
+	const config = await loadConfig(cwdProjectPath);
+
+	if (!config) {
+		console.warn(
+			outdent`
+			Warning: Config file "link.config.json" not found in current directory.
+			`,
+		);
+		showHelp();
+		return;
+	}
+
+	await linkFromConfig(
+		cwdProjectPath,
+		config,
+		{
+			deep: flags.deep,
+			include: flags.include,
+			exclude: flags.exclude,
+		},
+	);
+};
+
+export const linkCommand = command({
+	name: 'link',
+	parameters: ['[package paths...]'],
+	flags: {
+		deep: {
+			type: Boolean,
+			alias: 'd',
+			description: 'Run `global link` on dependencies if they have a link.config.json',
+		},
+		include: {
+			type: [String],
+			alias: 'i',
+			description: 'Only link packages whose name or alias matches (repeatable)',
+		},
+		exclude: {
+			type: [String],
+			alias: 'e',
+			description: 'Skip packages whose name or alias matches (repeatable)',
+		},
+	},
+	help: {
+		description: 'Symlink local dependencies into the current project',
+	},
+}, async (argv) => {
+	const cwdProjectPath = await getProjectCwd();
+	await runLink(cwdProjectPath, argv._.packagePaths, argv.flags, argv.showHelp);
+});
