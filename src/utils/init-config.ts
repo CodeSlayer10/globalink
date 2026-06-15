@@ -28,7 +28,7 @@ export const initConfig = async (
 
     const config: LinkConfig = {
         deepLink: options.deep || false,
-        packages: packagePaths.map(path => path + "\n"),
+        packages: packagePaths
     };
 
     await fs.writeFile(configJsonPath, `${JSON.stringify(config, null, '\t')}\n`);
