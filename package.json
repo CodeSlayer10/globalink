@@ -27,8 +27,7 @@
 		"dev": "node --watch tests/index.ts",
 		"lint": "lintroll --cache --ignore-pattern=tests/fixtures .",
 		"type-check": "tsc",
-		"prepack": "pnpm build",
-		"prepare": "skills-npm"
+		"prepack": "pnpm build"
 	},
 	"devDependencies": {
 		"@types/cmd-shim": "^5.0.2",
