@@ -14,6 +14,8 @@ Safer `npm link` alternative — symlinks local packages directly into `node_mod
 | `npx link <paths...>` | Symlink local packages into `node_modules` |
 | `npx link` | Link all packages from `link.config.json` |
 | `npx link --deep` / `-d` | Recursively link dependencies that have their own `link.config.json` |
+| `npx link --include <name>` / `-i` | Link only configured packages matching the given name or alias (repeatable) |
+| `npx link --exclude <name>` / `-e` | Skip configured packages matching the given name or alias (repeatable) |
 | `npx link publish <paths...>` | Hardlink only publishable files (simulates `npm install`) |
 
 ## Symlink Mode (Default)
@@ -66,7 +68,8 @@ npx link publish ../my-library
         "../dependency-a",
         "/absolute/path/to/dependency-b"
     ],
-    "deepLink": false
+    "deepLink": false,
+    "alias": "dep-a"
 }
 ```
 
@@ -74,10 +77,28 @@ npx link publish ../my-library
 |-------|------|---------|---------|
 | `packages` | `string[]` | — | Paths to dependency packages (absolute or relative) |
 | `deepLink` | `boolean` | `false` | Recursively link dependencies that have their own `link.config.json` |
+| `alias` | `string` | — | Short handle for this package, used to match `--include`/`--exclude`. Does **not** change the name the package is linked under in `node_modules`. |
 
 Do not commit `link.config.json` — paths are machine-specific.
 
 Run `npx link` with no arguments to link all configured packages. Use `npx link --deep` or set `"deepLink": true` to enable recursive linking.
+
+## Filtering Which Packages to Link
+
+When linking from `link.config.json`, use `--include`/`-i` and `--exclude`/`-e` to link only a subset of the configured packages. Both flags are repeatable and match against each package's `name` (from its `package.json`) or its `alias` (declared in that package's own `link.config.json`).
+
+```sh
+# Link only the matching packages
+npx link --include dependency-a --include dep-b
+
+# Link everything except the matching packages
+npx link --exclude dependency-a
+
+# Match by alias instead of package name
+npx link -i dep-a
+```
+
+Filtering applies only to the config flow (`npx link` with no path arguments) — it does not affect paths passed directly on the command line. Filters apply only to the top-level config and are not propagated into `--deep` recursion.
 
 ## Symlink vs Publish Mode
 
