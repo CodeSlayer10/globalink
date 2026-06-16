@@ -1,5 +1,5 @@
 ---
-name: link
+name: globalink
 description: "Symlink local packages into node_modules using the `global` CLI (`global link`). Link by path or by registered name/alias, configure dependencies and scripts in link.config.json, recursively link a dependency graph, and run scripts across linked packages with `global run`. Use when wiring up local dependencies for development. Do not use for general symlink filesystem questions or npm link internals."
 ---
 
