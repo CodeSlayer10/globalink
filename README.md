@@ -1,246 +1,188 @@
-<p align="center">
-	<img width="180" src=".github/logo.webp">
-</p>
-<h1 align="center">
-	<sup>npx link</sup>
-	<br>
-	<a href="https://npm.im/link"><img src="https://badgen.net/npm/v/link"></a> <a href="https://npm.im/link"><img src="https://badgen.net/npm/dm/link"></a>
-</h1>
+<h1 align="center">global</h1>
 
-A safer and enhanced version of [`npm link`](https://docs.npmjs.com/cli/v8/commands/npm-link).
+<p align="center">A safer and enhanced version of <a href="https://docs.npmjs.com/cli/v8/commands/npm-link"><code>npm link</code></a>.</p>
 
 Why is `npm link` unsafe? Read the [blog post](https://hirok.io/posts/avoid-npm-link).
 
 ### Features
-- 🔗 Link dependencies without removing previous links
+- 🔗 Symlinks local packages into `node_modules` without global installs or dependency reinstalls
+- 🗂 A global registry lets you link packages by name or alias — no path needed
+- 🔥 A `link.config.json` config file for linking multiple packages at once
+- 💫 Recursive linking across a whole dependency graph
+- ▶️ Run scripts across linked packages with `global run`
 - 🛡 Only resolves to local paths
-- 🔥 Config file quickly linking multiple packages
-- 💫 Deep linking for quickling linking multilple packages
 
-<br>
+## Install
 
-<p align="center">
-	<a href="https://github.com/sponsors/privatenumber/sponsorships?tier_id=398771"><img width="412" src="https://raw.githubusercontent.com/privatenumber/sponsors/master/banners/assets/donate.webp"></a>
-	<a href="https://github.com/sponsors/privatenumber/sponsorships?tier_id=397608"><img width="412" src="https://raw.githubusercontent.com/privatenumber/sponsors/master/banners/assets/sponsor.webp"></a>
-</p>
-<p align="center"><sup><i>Already a sponsor?</i> Join the discussion in the <a href="https://github.com/pvtnbr/link">Development repo</a>!</sup></p>
+```sh
+npm install -g @merkaz-amit/global
+```
+
+This exposes the `global` command.
 
 ## Terminology
 
-- **Dependency package**
-
-	The package getting linked. This is usually a library.
-
-- **Consuming package**
-
-	The project you want to link the _Dependency package_ as a dependency of. This is usually an application.
+- **Dependency package** — the package getting linked (usually a library).
+- **Consuming package** — the project you want to link the dependency into (usually an application).
 
 	`consuming-package/node_modules/dependency-package` → `dependency-package`
-
 
 ## Usage
 
 ### Linking a package
 
-From the _Consuming package_ directory, link the _Dependency package_:
+From the _Consuming package_ directory, link a _Dependency package_:
 
 ```sh
-npx link <dependency-package-path>
+global link <dependency>
 ```
 
-This creates a symbolic link inside the `node_modules` of _Consuming package_, referencing the _Dependency package_.
+A `<dependency>` can be an **absolute path, a relative path, a package name, or an alias**. Paths are resolved relative to the current project; bare names and aliases are looked up in the [global registry](#the-registry).
 
+```sh
+global link ../my-library           # relative path
+global link /abs/path/to/my-library # absolute path
+global link my-library              # package name (via registry)
+global link my-lib                  # alias (via registry)
+```
+
+> Running `global <dependency>` with no subcommand is shorthand for `global link <dependency>`.
+
+Each link:
+- Creates a symbolic link at `node_modules/<package-name>` referencing the _Dependency package_.
+- Symlinks the package's binaries into `node_modules/.bin/`.
+- Records the dependency in the _Consuming package_'s `link.config.json`.
+- Registers the _Dependency package_ in the [global registry](#the-registry) under its name and alias.
 
 > **🛡️ Secure linking**
 >
 > Unlike `npm link`, it doesn't install the _Dependency package_ globally or re-install project dependencies.
 
-### Publish mode
+### Unlinking
 
-Using symbolic links may not replicate the exact environment you get from a standard `npm install`. This discrepancy primarily arises from symlinked packages retaining their development `node_modules` directory. This can lead to issues, especially when multiple packages depend on the same library.
+`global unlink` is the inverse of `link` — it removes the symlinks `link` created and drops the dependencies from `link.config.json`. A real installed directory is left intact.
 
-<details>
-	<summary>Here's an example</summary>
-	<br>
+```sh
+global unlink <dependency>   # unlink specific packages
+global unlink                # unlink everything in link.config.json
+```
 
-In a production environment, `npm install` detects common dependencies and installs only one instance of a shared dependency. However, when there's a symbolic link to the development directory of a dependency, separate copies of those dependencies are resolved from the development `node_modules`.
+It accepts the same arguments, config fallback, and `--recursive` / `--include` / `--exclude` flags as `link`. Running `npm install` also restores `node_modules`.
 
-Let's say there's an _App A_ with a dependency on _Package B_, and they both depend on _Library C_:
+### The registry
 
-- Production environment
+`global` maintains a registry at `~/.globalink/registry.json`, a map of `{ "<name-or-alias>": "<absolute-path>" }`. Every `global link` registers the linked package under its `package.json` `name` and, if set, its config `alias`.
 
-	`npm install` detects that both _App A_ and _Package B_ depends on _Library C_, and only installs one copy of _Library C_ for them to share.
+Once a package is registered (by being linked at least once, or by running `global link --alias <name>` in it), any other project can link it by name or alias without knowing its path:
 
-- Symbolic link environment
+```sh
+# In the library, register it under an alias
+cd ../my-library
+global link --alias my-lib
 
-	_App A_ has its copy of _Library C_, and _Package B_ also has its development copy of _Library C_—possibly with different versions. Consequently, when you run the application, it will load two different versions of _Library C_, leading to unexpected outcomes.
+# In any consuming project — no path needed
+global link my-lib
+```
 
-</details>
-
-_Publish mode_ helps replicate the production environment in your development setup.
-
-#### Setup instructions
-
-1. In the _Dependency package_, run `npm pack` to create a tarball:
-
-	```sh
-	cd dependency-package-path
-	npm pack
-	```
-
-	This generates a tarball (`.tgz`) file in the current directory. Installing from this simulates the conditions of a published package without actually publishing it.
-
-	> **Tip:** You can skip this step if this dependency is already installed from npm and there are no changes to the dependency's `package.json`
-
-2. In the _Consuming package_
-
-	1. Install the Dependency tarball from _Step 1_
-
-		```sh
-		npm install --no-save <dependency-tarball-path>
-		```
-
-		This sets up the same `node_modules` tree used in a production environment.
-
-	2. Link the _Dependency package_
-
-		```sh
-		npx link publish <dependency-package-path>
-		```
-
-		This creates hard links in `node_modules/dependency` to the specific publish assets of the _Dependency package_.
-
-		<details>
-		<summary><em>Why hard links instead of symbolic links?</em></summary>
-		<br>
-
-		Another issue with the symlink approach is that Node.js, and popular bundlers, looks up the `node_module` directory relative to a module's realpath rather than the import path (symlink path). By using hard links, we can prevent this behavior and ensure that the `node_modules` directory is resolved using the production tree we set up in _Step 2_.
-		</details>
-
-4. Start developing!
-
-	Any changes you make to the _Dependency package_ will be reflected in the `node_modules` directory of the _Consuming package_.
-
-	> **Note:** If the _Dependency package_ emits new files, you'll need to re-run `npx link publish <dependency-package-path>` to create new hard links.
-	
 ### Configuration file
 
-Create a `link.config.json` (or `link.config.js`) configuration file at the root of the _Consuming package_ to automatically setup links to multiple _Dependency packages_.
+Create a `link.config.json` at the root of the _Consuming package_ to set up links to multiple _Dependency packages_ at once.
 
-Example _link.config.json_:
-```json5
+```json
 {
-    "packages": [
-        "/path/to/dependency-path-a",
-        "../dependency-path-b",
+    "alias": "my-lib",
+    "deepLink": true,
+    "dependencies": [
+        "/path/to/dependency-a",
+        "../dependency-b",
+        "dep-c-alias"
     ],
+    "scripts": {
+        "build": "pkgroll",
+        "test": "node tests/index.ts"
+    }
 }
 ```
 
-The configuration has the following type schema:
+The configuration has the following schema:
+
 ```ts
 type LinkConfig = {
-
-    // Short handle for this package, used with --include/--exclude
+    // This package's short handle — a registry key others can link by,
+    // and matched by --include/--exclude. Does not change the linked name.
     alias?: string
 
-    // Whether to run `npx link` on dependency packages with link.config.json
+    // During a recursive (-r) link/run, whether to descend into this
+    // package's own dependencies. Defaults to descending; false stops here.
     deepLink?: boolean
 
-    // List of dependency packages to link
-    packages?: string[]
+    // Packages to link — each an alias, package name, absolute path, or relative path.
+    dependencies?: string[]
+
+    // Named shell commands, run via `global run <name>`.
+    scripts?: Record<string, string>
 }
 ```
 
-> **Note:** It's not recommended to commit this file to source control since this is for local development with local paths.
-
-
-To link the dependencies defined in `link.config.json`, run:
-```sh
-npx link
-```
-
-### Filtering which packages to link
-
-When linking from `link.config.json`, you can link only a subset of the configured
-packages using `--include`/`-i` and `--exclude`/`-e`. Both flags are repeatable and
-match against each package's `name` (from its `package.json`) or its `alias` (from
-its own `link.config.json`).
+To link everything in `dependencies`, run `global link` with no arguments:
 
 ```sh
-# Only link the matching packages
-npx link --include package-a --include package-b
-
-# Link everything except the matching packages
-npx link --exclude package-c
+global link
 ```
 
-The `alias` field lets you reference a package by a short handle instead of its full
-package name:
+> **Note:** Path-based entries are machine-specific — prefer name/alias references for portability, and avoid committing machine-specific absolute paths to source control.
 
-```json5
-// dependency-package/link.config.json
-{
-    "alias": "a",
-}
-```
+### Recursive linking
+
+By default, `global link` only links the _Consuming package_'s direct dependencies. With `--recursive` (`-r`), it links from config, then descends into each dependency's own `link.config.json` and links _its_ dependencies too, and so on.
 
 ```sh
-npx link -i a
+global link --recursive
 ```
 
-> **Note:** `alias` is only used as a handle for filtering — it does not change the
-> name the package is linked under in `node_modules`.
+Traversal stops at a package whose config sets `"deepLink": false`, or at a package it has already visited (diamond dependencies are deduped).
 
-### Deep linking
+### Running scripts
 
-By default, `npx link` only links packages in the _Consuming package_. However, there are cases where the _Dependency packages_ also needs linking setup.
-
-Deep linking recursively runs link on every linked dependency that has a `link.config.json` file.
-
-Enable with the `--deep` flag or `deepLink` property in `link.config.json`.
+`global run <script>` runs the matching entry from the config's `scripts` map. The command runs with the package's `node_modules/.bin` on `PATH`, and its output is streamed.
 
 ```sh
-npx link --deep
+global run build
 ```
+
+With `--recursive` (`-r`), the script runs across the dependency graph **deps-first** (post-order) — each dependency's script runs before the dependent's.
+
+```sh
+global run build --recursive
+```
+
+- Packages that don't define the named script are skipped silently.
+- A non-zero exit halts the chain.
+- If no package in the graph defines the script, it warns and exits with code 1.
+
+### Filtering which packages to act on
+
+When operating from `link.config.json`, use `--include` / `-i` and `--exclude` / `-e` to act on only a subset of configured dependencies. Both flags are repeatable and match against each dependency's raw config string, its `package.json` `name`, and its config `alias`.
+
+```sh
+# Only act on the matching dependencies
+global link --include dependency-a --include dependency-b
+
+# Act on everything except the matching dependencies
+global link --exclude dependency-c
+
+# Match by alias
+global link -i a
+```
+
+Filtering applies only to the config flow (`link` / `unlink` / `run` with no path arguments) — it does not affect dependencies passed directly on the command line. Under `--recursive`, the filters are threaded through every level of the traversal.
 
 ## FAQ
 
-### Why should I use `npx link` over `npm link`?
-Because `npm link` [is complicated and dangerous to use](https://hirok.io/posts/avoid-npm-link). And `npx link` offers more features such as _Publish mode_.
+### Why should I use `global` over `npm link`?
+
+Because `npm link` [is complicated and dangerous to use](https://hirok.io/posts/avoid-npm-link). `global` only resolves to local paths, doesn't touch your global installs, and keeps a recoverable record of every link in `link.config.json` and the registry.
 
 ### How do I remove the links?
-Run `npm install` and it should remove them.
 
-`npm install` enforces the integrity of `node_modules` by making sure all packages are correctly installed. Reverting the links is a side effect of this.
-
-### Why does `npx link` point to `ln`?
-
-You must use npx v7 or higher. Check the version with `npx -v`.
-
-In the obsolete npx v6, local binaries take precedence over npm modules so  `npx link` can point to the native `link`/`ln` command:
-```
-$ npx link
-usage: ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file [target_file]
-       ln [-s [-F] | -L | -P] [-f | -i] [-hnv] source_file ... target_dir
-       link source_file target_file
-```
-
-To work around this, install `link` globally first:
-```sh
-$ npm i -g link
-$ npx link
-```
-
-## Related
-
-- [`npx ci`](https://github.com/privatenumber/ci) - A better `npm ci`.
-
-
-## Sponsors
-
-<p align="center">
-	<a href="https://github.com/sponsors/privatenumber">
-		<img src="https://cdn.jsdelivr.net/gh/privatenumber/sponsors/sponsorkit/sponsors.svg">
-	</a>
-</p>
+Run `global unlink`, or run `npm install` — it enforces the integrity of `node_modules` and reverts the links as a side effect.
