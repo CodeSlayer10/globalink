@@ -1,7 +1,7 @@
 {
 	"name": "@merkaz-amit/global",
 	"private": false,
-	"version": "1.0.4",
+	"version": "1.1.0",
 	"description": "A more global npm link",
 	"keywords": [
 		"npm",
@@ -28,6 +28,9 @@
 		"lint": "lintroll --cache --ignore-pattern=tests/fixtures .",
 		"type-check": "tsc",
 		"prepack": "pnpm build"
+	},
+	"dependencies": {
+		"execa": "^9.6.1"
 	},
 	"devDependencies": {
 		"@types/cmd-shim": "^5.0.2",
