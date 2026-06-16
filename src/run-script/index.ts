@@ -47,8 +47,8 @@ const collectPackages = async (
 	config: LinkConfig,
 	options: RunOptions,
 	recursive: boolean,
-	visited: Set<string>,
 	acc: CollectedPackage[],
+	visited: Set<string> = new Set(),
 ) => {
 	const resolvedBase = path.resolve(basePackagePath);
 	if (visited.has(resolvedBase)) {
@@ -66,7 +66,7 @@ const collectPackages = async (
 		for (const { absolutePath } of dependencies) {
 			const depConfig = await loadConfig(absolutePath);
 			if (depConfig) {
-				await collectPackages(absolutePath, depConfig, options, recursive, visited, acc);
+				await collectPackages(absolutePath, depConfig, options, recursive, acc, visited);
 			}
 		}
 	}
@@ -86,7 +86,7 @@ export const runScriptFromConfig = async (
 	recursive: boolean,
 ) => {
 	const packages: CollectedPackage[] = [];
-	await collectPackages(basePackagePath, config, options, recursive, new Set(), packages);
+	await collectPackages(basePackagePath, config, options, recursive, packages);
 
 	let ran = 0;
 	for (const { packagePath, config: packageConfig } of packages) {
