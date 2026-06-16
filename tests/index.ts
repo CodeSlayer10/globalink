@@ -6,6 +6,7 @@ import { unlinkSpec } from './specs/unlink.spec.ts';
 import { registrySpec } from './specs/registry.spec.ts';
 import { symlinkSpec } from './specs/symlink.spec.ts';
 import { utils } from './specs/utils.spec.ts';
+import { runScript } from './specs/run-script.spec.ts';
 
 const nodeVersions = [
 	'20',
@@ -28,6 +29,7 @@ const nodeVersions = [
 			registrySpec(node.path);
 			symlinkSpec(node.path);
 			utils(node.path);
+			runScript(node.path);
 		});
 	}
 })();

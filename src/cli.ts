@@ -1,6 +1,7 @@
 import { cli } from 'cleye';
 import { linkCommand, linkFlags, runLink } from './commands/link/index.ts';
 import { unlinkCommand } from './commands/unlink/index.ts';
+import { runCommand } from './commands/run/index.ts';
 import { getProjectCwd } from './utils/project-cwd.ts';
 
 (async () => {
@@ -18,6 +19,7 @@ import { getProjectCwd } from './utils/project-cwd.ts';
 		commands: [
 			linkCommand,
 			unlinkCommand,
+			runCommand,
 		],
 	}, async (parsed) => {
 		const cwdProjectPath = await getProjectCwd();
