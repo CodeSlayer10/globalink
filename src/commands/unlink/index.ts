@@ -2,30 +2,32 @@ import { command } from 'cleye';
 import { outdent } from 'outdent';
 import { unlinkPackage, unlinkFromConfig } from '../../unlink-package/index.ts';
 import { loadConfig } from '../../utils/load-config.ts';
+import { removeDependencies } from '../../utils/write-config.ts';
 import { getProjectCwd } from '../../utils/project-cwd.ts';
 
-type UnlinkFlags = {
-	deep?: boolean;
+export type UnlinkFlags = {
+	recursive?: boolean;
 	include: string[];
 	exclude: string[];
 };
 
 export const runUnlink = async (
 	cwdProjectPath: string,
-	packagePaths: string[],
+	dependencies: string[],
 	flags: UnlinkFlags,
 	showHelp: () => void,
 ) => {
-	if (packagePaths.length > 0) {
+	const options = {
+		include: flags.include,
+		exclude: flags.exclude,
+	};
+
+	if (dependencies.length > 0) {
 		await Promise.all(
-			packagePaths.map(
-				linkPackagePath => unlinkPackage(
-					cwdProjectPath,
-					linkPackagePath,
-					flags,
-				),
-			),
+			dependencies.map(dependency => unlinkPackage(cwdProjectPath, dependency)),
 		);
+		// Drop them from this package's config (symmetry with link recording them).
+		await removeDependencies(cwdProjectPath, dependencies);
 		return;
 	}
 
@@ -41,35 +43,27 @@ export const runUnlink = async (
 		return;
 	}
 
-	await unlinkFromConfig(
-		cwdProjectPath,
-		config,
-		{
-			deep: flags.deep,
-			include: flags.include,
-			exclude: flags.exclude,
-		},
-	);
+	await unlinkFromConfig(cwdProjectPath, config, options, Boolean(flags.recursive));
 };
 
 export const unlinkCommand = command({
 	name: 'unlink',
-	parameters: ['[package paths...]'],
+	parameters: ['[dependencies...]'],
 	flags: {
-		deep: {
+		recursive: {
 			type: Boolean,
-			alias: 'd',
-			description: 'Recursively unlink dependencies that have a link.config.json',
+			alias: 'r',
+			description: 'Unlink from config, then descend into dependencies\' configs',
 		},
 		include: {
 			type: [String],
 			alias: 'i',
-			description: 'Only unlink packages whose name or alias matches (repeatable)',
+			description: 'Only unlink dependencies whose name or alias matches (repeatable)',
 		},
 		exclude: {
 			type: [String],
 			alias: 'e',
-			description: 'Skip packages whose name or alias matches (repeatable)',
+			description: 'Skip dependencies whose name or alias matches (repeatable)',
 		},
 	},
 	help: {
@@ -77,5 +71,5 @@ export const unlinkCommand = command({
 	},
 }, async (argv) => {
 	const cwdProjectPath = await getProjectCwd();
-	await runUnlink(cwdProjectPath, argv._.packagePaths, argv.flags, argv.showHelp);
+	await runUnlink(cwdProjectPath, argv._.dependencies, argv.flags, argv.showHelp);
 });

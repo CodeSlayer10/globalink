@@ -6,6 +6,12 @@ const cliBinPath = path.resolve('./dist/cli.js');
 type Options = {
 	cwd: string;
 	nodePath: string;
+
+	/**
+	 * Isolated home directory for the global registry (`~/.globalink`). Defaults
+	 * to the cwd so tests never touch the real user home.
+	 */
+	home?: string;
 };
 
 export const unlink = (
@@ -13,12 +19,16 @@ export const unlink = (
 	{
 		cwd,
 		nodePath,
+		home,
 	}: Options,
 ) => execaNode(
 	cliBinPath,
 	['unlink', ...cliArguments],
 	{
-		env: {},
+		env: {
+			HOME: home ?? cwd,
+			USERPROFILE: home ?? cwd,
+		},
 		extendEnv: false,
 		nodeOptions: [],
 		cwd,

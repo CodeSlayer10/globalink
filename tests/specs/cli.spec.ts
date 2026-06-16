@@ -112,20 +112,20 @@ export const cli = (nodePath: string) => {
 
 			const entryPackagePath = path.join(fixture.path, 'package-entry');
 
-			// Links multiple packages consecutively
-			await Promise.all(
-				[
-					'../package-binary',
-					path.join(fixture.path, 'package-files'),
-					'../package-scoped',
-					'../nested/package-deep-link',
-				].map(async (packagePath) => {
-					await link([packagePath], {
-						cwd: entryPackagePath,
-						nodePath,
-					});
-				}),
-			);
+			// Links multiple packages consecutively (each link updates the config,
+			// so run sequentially to avoid concurrent writes to the same file)
+			for (const packagePath of [
+				'../package-binary',
+				path.join(fixture.path, 'package-files'),
+				'../package-scoped',
+				'../nested/package-deep-link',
+			]) {
+				// eslint-disable-next-line no-await-in-loop
+				await link([packagePath], {
+					cwd: entryPackagePath,
+					nodePath,
+				});
+			}
 
 			// Test that linked packages are resolvable
 			const entryPackage = await execaNode(
@@ -214,19 +214,18 @@ export const cli = (nodePath: string) => {
 
 			await fixture.rm('package-entry/package.json');
 
-			await Promise.all(
-				[
-					'../package-binary',
-					path.join(fixture.path, 'package-files'),
-					'../package-scoped',
-					'../nested/package-deep-link',
-				].map(async (packagePath) => {
-					await link([packagePath], {
-						cwd: entryPackagePath,
-						nodePath,
-					});
-				}),
-			);
+			for (const packagePath of [
+				'../package-binary',
+				path.join(fixture.path, 'package-files'),
+				'../package-scoped',
+				'../nested/package-deep-link',
+			]) {
+				// eslint-disable-next-line no-await-in-loop
+				await link([packagePath], {
+					cwd: entryPackagePath,
+					nodePath,
+				});
+			}
 
 			const entryPackage = await execaNode(
 				path.join(fixture.path, 'package-entry'),
@@ -250,7 +249,7 @@ export const cli = (nodePath: string) => {
 				path.join(fixture.path, 'package-files'),
 				'../package-scoped',
 				'../nested/package-deep-link',
-				'--deep',
+				'-r',
 			], {
 				cwd: entryPackagePath,
 				nodePath,

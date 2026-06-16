@@ -5,63 +5,69 @@ import {
 import { fsExists } from '../utils/fs-exists.ts';
 import type { LinkConfig } from '../types.ts';
 import { loadConfig } from '../utils/load-config.ts';
-import { resolvePackagePaths } from '../utils/filter-config-packages.ts';
+import { resolveDependency } from '../utils/registry.ts';
+import { resolveDependencies } from '../utils/filter-config-packages.ts';
 import { symlinkPackage } from './symlink-package.ts';
 
-export const linkPackage = async (
-	basePackagePath: string,
-	linkPackagePath: string,
-	options: {
-		deep?: boolean;
-	},
-	visited: Set<string> = new Set(),
-) => {
-	const absoluteLinkPackagePath = path.resolve(basePackagePath, linkPackagePath);
-	const pathExists = await fsExists(absoluteLinkPackagePath);
+type LinkOptions = {
+	include?: string[];
+	exclude?: string[];
+};
 
-	if (!pathExists) {
-		console.warn(red('✖'), `Package path does not exist: ${linkPackagePath}`);
+const symlinkOne = async (
+	basePackagePath: string,
+	absolutePath: string,
+	label: string,
+): Promise<boolean> => {
+	if (!(await fsExists(absolutePath))) {
+		console.warn(red('✖'), `Package path does not exist: ${label}`);
 		process.exitCode = 1;
-		return;
+		return false;
 	}
 
 	try {
-		const link = await symlinkPackage(
-			basePackagePath,
-			linkPackagePath,
-		);
+		const link = await symlinkPackage(basePackagePath, absolutePath);
 		console.log(green('✔'), `Symlinked ${magenta(link.name)}:`, cyan(link.path), '→', cyan(link.target));
+		return true;
 	} catch (error) {
-		console.warn(red('✖'), 'Failed to symlink', cyan(linkPackagePath), 'with error:', (error as Error).message);
+		console.warn(red('✖'), 'Failed to symlink', cyan(label), 'with error:', (error as Error).message);
+		process.exitCode = 1;
+		return false;
+	}
+};
+
+/**
+ * Resolve a single dependency (alias, package name, or path) and symlink it into
+ * `basePackagePath`'s node_modules.
+ */
+export const linkPackage = async (
+	basePackagePath: string,
+	dependency: string,
+) => {
+	const absolutePath = await resolveDependency(basePackagePath, dependency);
+
+	if (!absolutePath) {
+		console.warn(red('✖'), `Could not resolve dependency: ${dependency}`);
 		process.exitCode = 1;
 		return;
 	}
 
-	if (options.deep) {
-		const config = await loadConfig(absoluteLinkPackagePath);
-
-		if (config) {
-			await linkFromConfig(
-				absoluteLinkPackagePath,
-				config,
-				options,
-				visited,
-			);
-		}
-	}
+	await symlinkOne(basePackagePath, absolutePath, dependency);
 };
 
+/**
+ * Link a package's config dependencies into its node_modules. When `recursive`,
+ * descend into each dependency's own config and link its dependencies too,
+ * stopping at a `deepLink: false` config or an already-visited package.
+ */
 export const linkFromConfig = async (
 	basePackagePath: string,
 	config: LinkConfig,
-	options: {
-		deep?: boolean;
-		include?: string[];
-		exclude?: string[];
-	},
+	options: LinkOptions,
+	recursive: boolean,
 	visited: Set<string> = new Set(),
 ) => {
-	if (!config.packages) {
+	if (!config.dependencies) {
 		return;
 	}
 
@@ -71,24 +77,26 @@ export const linkFromConfig = async (
 	}
 	visited.add(resolvedBase);
 
-	const packagePaths = await resolvePackagePaths(
+	const dependencies = await resolveDependencies(
 		basePackagePath,
-		config.packages,
+		config.dependencies,
 		options,
 	);
 
-	const newOptions = {
-		deep: options.deep ?? config.deepLink ?? false,
-	};
-
 	await Promise.all(
-		packagePaths.map(
-			async linkPackagePath => await linkPackage(
-				basePackagePath,
-				linkPackagePath,
-				newOptions,
-				visited,
-			),
-		),
+		dependencies.map(async ({ dependency, absolutePath }) => {
+			const linked = await symlinkOne(basePackagePath, absolutePath, dependency);
+
+			if (!linked || !recursive) {
+				return;
+			}
+
+			const depConfig = await loadConfig(absolutePath);
+			if (!depConfig || depConfig.deepLink === false) {
+				return;
+			}
+
+			await linkFromConfig(absolutePath, depConfig, options, recursive, visited);
+		}),
 	);
 };

@@ -8,7 +8,7 @@ export const unlinkSpec = (nodePath: string) => {
 	describe('unlink', () => {
 		const writeConfig = (fixture: Awaited<ReturnType<typeof createFixture>>) => (
 			fixture.writeJson('package-entry/link.config.json', {
-				packages: [
+				dependencies: [
 					'../package-binary',
 					path.join(fixture.path, 'package-files'),
 					'../package-scoped',
@@ -62,12 +62,12 @@ export const unlinkSpec = (nodePath: string) => {
 			expect(await fixture.exists('package-entry/node_modules/@scope/package-scoped')).toBe(true);
 		});
 
-		test('--deep removes nested symlinks', async () => {
+		test('-r removes nested symlinks', async () => {
 			await using fixture = await createFixture('./tests/fixtures/');
 			const entryPackagePath = path.join(fixture.path, 'package-entry');
 
 			await fixture.writeJson('package-entry/link.config.json', {
-				packages: [
+				dependencies: [
 					'../package-binary',
 					path.join(fixture.path, 'package-files'),
 					'../package-scoped',
@@ -75,7 +75,7 @@ export const unlinkSpec = (nodePath: string) => {
 				],
 			});
 
-			await link(['--deep'], {
+			await link(['-r'], {
 				cwd: entryPackagePath,
 				nodePath,
 			});
@@ -84,7 +84,7 @@ export const unlinkSpec = (nodePath: string) => {
 			expect(await fixture.exists('nested/package-deep-link/node_modules/package-files')).toBe(true);
 			expect(await fixture.exists('nested/package-deep-link/node_modules/@scope/package-scoped')).toBe(true);
 
-			await unlink(['--deep'], {
+			await unlink(['-r'], {
 				cwd: entryPackagePath,
 				nodePath,
 			});
@@ -95,27 +95,27 @@ export const unlinkSpec = (nodePath: string) => {
 			expect(await fixture.exists('nested/package-deep-link/node_modules/@scope/package-scoped')).toBe(false);
 		});
 
-		test('--deep terminates on circular config references', async () => {
+		test('-r terminates on circular config references', async () => {
 			await using fixture = await createFixture({
 				'package-a': {
 					'package.json': JSON.stringify({ name: 'package-a' }),
 					'link.config.json': JSON.stringify({
 						deepLink: true,
-						packages: ['../package-b'],
+						dependencies: ['../package-b'],
 					}),
 				},
 				'package-b': {
 					'package.json': JSON.stringify({ name: 'package-b' }),
 					'link.config.json': JSON.stringify({
 						deepLink: true,
-						packages: ['../package-a'],
+						dependencies: ['../package-a'],
 					}),
 				},
 			});
 
 			const packageAPath = path.join(fixture.path, 'package-a');
 
-			await link(['--deep'], {
+			await link(['-r'], {
 				cwd: packageAPath,
 				nodePath,
 			});
@@ -123,7 +123,7 @@ export const unlinkSpec = (nodePath: string) => {
 			expect(await fixture.exists('package-a/node_modules/package-b')).toBe(true);
 			expect(await fixture.exists('package-b/node_modules/package-a')).toBe(true);
 
-			const result = await unlink(['--deep'], {
+			const result = await unlink(['-r'], {
 				cwd: packageAPath,
 				nodePath,
 			});
