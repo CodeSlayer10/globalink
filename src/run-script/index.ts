@@ -1,8 +1,6 @@
 import path from 'path';
 import { execa } from 'execa';
-import {
-	green, red, cyan, magenta,
-} from 'kolorist';
+import { green, red, cyan, magenta, yellow } from 'kolorist';
 import type { LinkConfig } from '../types.ts';
 import { loadConfig } from '../utils/load-config.ts';
 import { resolveDependencies } from '../utils/filter-config-packages.ts';
@@ -27,12 +25,13 @@ export const runScript = async (
 	command: string,
 ) => {
 	console.log(green('▶'), `Running ${magenta(command)} in`, cyan(packagePath));
-	await execa(command, {
+	const process = await execa(command, {
 		cwd: packagePath,
 		shell: true,
 		stdio: 'inherit',
 		preferLocal: true,
 	});
+	return process.exitCode;
 };
 
 /**
@@ -47,14 +46,15 @@ const collectPackages = async (
 	config: LinkConfig,
 	options: RunOptions,
 	recursive: boolean,
-	acc: CollectedPackage[],
 	visited: Set<string> = new Set(),
-) => {
+): Promise<CollectedPackage[]> => {
 	const resolvedBase = path.resolve(basePackagePath);
 	if (visited.has(resolvedBase)) {
-		return;
+		return [];
 	}
 	visited.add(resolvedBase);
+
+	const packages: CollectedPackage[] = [];
 
 	if (recursive && config.dependencies && config.deepLink !== false) {
 		const dependencies = await resolveDependencies(
@@ -66,12 +66,14 @@ const collectPackages = async (
 		for (const { absolutePath } of dependencies) {
 			const depConfig = await loadConfig(absolutePath);
 			if (depConfig) {
-				await collectPackages(absolutePath, depConfig, options, recursive, acc, visited);
+				const depPackages = await collectPackages(absolutePath, depConfig, options, recursive, visited);
+				packages.push(...depPackages);
 			}
 		}
 	}
 
-	acc.push({ packagePath: basePackagePath, config });
+	packages.push({ packagePath: basePackagePath, config });
+	return packages;
 };
 
 /**
@@ -85,15 +87,23 @@ export const runScriptFromConfig = async (
 	options: RunOptions,
 	recursive: boolean,
 ) => {
-	const packages: CollectedPackage[] = [];
-	await collectPackages(basePackagePath, config, options, recursive, packages);
+	const packages = await collectPackages(basePackagePath, config, options, recursive);
 
 	let ran = 0;
 	for (const { packagePath, config: packageConfig } of packages) {
 		const command = packageConfig.scripts?.[scriptName];
-		if (command) {
-			await runScript(packagePath, command);
-			ran += 1;
+
+		if (!command) {
+			console.log(yellow('⚠'), `${scriptName} not found in ${packageConfig.alias ?? packagePath}`)
+			continue;
+		}
+		const exitCode = await runScript(packagePath, command);
+		ran += 1;
+
+		if (exitCode) {
+			console.log(red('✖'), `${scriptName} failed to run in ${packageConfig.alias ?? packagePath}`)
+		} else {
+			console.log(green('✔'), `${scriptName} successfully run in ${packageConfig.alias ?? packagePath}`);
 		}
 	}
 
